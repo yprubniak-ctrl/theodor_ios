@@ -31,7 +31,7 @@ struct MessageBubble: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            if \!isUser {
+            if !isUser {
                 TheodoreAvatar(size: 28)
             }
 
@@ -79,8 +79,8 @@ struct TypingIndicator: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
         .onAppear {
-            withAnimation(.easeInOut(duration: 0.5).repeatForever()) {
-                Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                withAnimation(.easeInOut(duration: 0.5)) {
                     phase = (phase + 1) % 3
                 }
             }

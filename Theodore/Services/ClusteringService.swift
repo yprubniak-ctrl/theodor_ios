@@ -43,7 +43,7 @@ final class ClusteringService {
             }
             current.append(asset)
         }
-        if \!current.isEmpty { rawClusters.append(current) }
+        if !current.isEmpty { rawClusters.append(current) }
 
         // 3. Merge small clusters
         let merged = mergSmallClusters(rawClusters)
@@ -75,7 +75,7 @@ final class ClusteringService {
         var result: [[(id: String, date: Date, location: CLLocation?)]] = []
 
         for cluster in clusters {
-            if cluster.count < minClusterSize, \!result.isEmpty {
+            if cluster.count < minClusterSize, !result.isEmpty {
                 // Merge into previous cluster
                 result[result.count - 1].append(contentsOf: cluster)
             } else {

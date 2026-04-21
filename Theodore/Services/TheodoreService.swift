@@ -50,13 +50,11 @@ actor TheodoreService {
 
     /// Continue a chapter through conversation.
     func continueConversation(
-        messages: [ConversationMessage],
+        history: [APIMessage],
         newMessage: String
     ) -> AsyncThrowingStream<String, Error> {
 
-        var apiMessages = messages.map {
-            APIMessage(role: $0.role.rawValue, content: $0.content)
-        }
+        var apiMessages = history
         apiMessages.append(APIMessage(role: "user", content: newMessage))
         return streamCompletion(messages: apiMessages)
     }
@@ -216,7 +214,7 @@ actor TheodoreService {
 
 // ── MARK: API Types ───────────────────────────────────────────────
 
-struct APIRequest: Encodable {
+nonisolated struct APIRequest: Encodable, Sendable {
     let model: String
     let max_tokens: Int
     let stream: Bool
@@ -225,7 +223,7 @@ struct APIRequest: Encodable {
 }
 
 /// APIMessage supports both plain text and multi-block (vision) content.
-struct APIMessage: Encodable {
+nonisolated struct APIMessage: Encodable, Sendable {
     let role: String
     let content: APIContent
 
@@ -242,7 +240,7 @@ struct APIMessage: Encodable {
     }
 }
 
-enum APIContent: Encodable {
+nonisolated enum APIContent: Encodable, Sendable {
     case text(String)
     case blocks([APIContentBlock])
 
@@ -258,7 +256,7 @@ enum APIContent: Encodable {
     }
 }
 
-struct APIContentBlock: Encodable {
+nonisolated struct APIContentBlock: Encodable, Sendable {
     let type: String
     var text: String?
     var source: APIImageSource?
@@ -275,26 +273,26 @@ struct APIContentBlock: Encodable {
     }
 }
 
-struct APIImageSource: Encodable {
+nonisolated struct APIImageSource: Encodable, Sendable {
     let type: String
     let media_type: String
     let data: String
 }
 
-struct StreamChunk: Decodable {
+nonisolated struct StreamChunk: Decodable, Sendable {
     let delta: Delta?
-    struct Delta: Decodable { let text: String? }
+    struct Delta: Decodable, Sendable { let text: String? }
 }
 
-struct CompletionResponse: Decodable {
+nonisolated struct CompletionResponse: Decodable, Sendable {
     let content: [ContentBlock]
-    struct ContentBlock: Decodable { let text: String }
+    struct ContentBlock: Decodable, Sendable { let text: String }
 }
 
 // ── MARK: Domain Types ────────────────────────────────────────────
 
 /// A photo with base64 image data — ready for the Vision API.
-struct VisionPhoto {
+nonisolated struct VisionPhoto: Sendable {
     let assetID: String
     let base64: String
     let dateString: String
@@ -302,21 +300,22 @@ struct VisionPhoto {
 }
 
 /// Text-only description — fallback when image loading fails.
-struct PhotoDescription {
+nonisolated struct PhotoDescription: Sendable {
     let assetID: String
     let dateString: String
     let locationName: String?
     let description: String
 }
 
-struct PhotoCluster {
+nonisolated struct PhotoCluster: Sendable {
     let dateRange: String
     let count: Int
     let dominantLocation: String?
     let assetIDs: [String]
+    let representativeAssetIDs: [String]
 }
 
-struct ChapterProposal: Codable {
+nonisolated struct ChapterProposal: Codable, Sendable {
     let title: String
     let description: String
     let mood: String

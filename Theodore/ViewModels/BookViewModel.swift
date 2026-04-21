@@ -95,7 +95,7 @@ final class BookViewModel {
     // ── MARK: Helpers ─────────────────────────────────────────
 
     private func addStep(_ text: String, active: Bool = false) async {
-        let step = ReadingStep(text: text, isDone: \!active, isActive: active)
+        let step = ReadingStep(text: text, isDone: !active, isActive: active)
         readingProgress.append(step)
         // Simulate reading time
         try? await Task.sleep(nanoseconds: 1_200_000_000)

@@ -24,6 +24,6 @@ final class Book {
     }
 
     var unreadCount: Int {
-        chapters.filter { \!$0.isRead }.count
+        chapters.filter { !$0.isRead }.count
     }
 }

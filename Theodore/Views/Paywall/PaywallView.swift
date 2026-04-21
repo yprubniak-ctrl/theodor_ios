@@ -58,7 +58,7 @@ struct PaywallView: View {
                         ValueRow(
                             icon: "book.closed",
                             title: "Unlimited chapters",
-                            body: "Every period of your life, written."
+                            subtitle:"Every period of your life, written."
                         )
                         Divider()
                             .overlay(Color.theoS2)
@@ -66,7 +66,7 @@ struct PaywallView: View {
                         ValueRow(
                             icon: "eye",
                             title: "Theodore sees your photos",
-                            body: "Vision AI reads each image and finds what you didn't say."
+                            subtitle:"Vision AI reads each image and finds what you didn't say."
                         )
                         Divider()
                             .overlay(Color.theoS2)
@@ -74,7 +74,7 @@ struct PaywallView: View {
                         ValueRow(
                             icon: "bubble.left.and.bubble.right",
                             title: "Revise with conversation",
-                            body: "Ask Theodore to rewrite, shift mood, or go deeper."
+                            subtitle:"Ask Theodore to rewrite, shift mood, or go deeper."
                         )
                         Divider()
                             .overlay(Color.theoS2)
@@ -82,7 +82,7 @@ struct PaywallView: View {
                         ValueRow(
                             icon: "icloud",
                             title: "Your book, always",
-                            body: "Stored privately on your device. No cloud. No tracking."
+                            subtitle:"Stored privately on your device. No cloud. No tracking."
                         )
                     }
                     .background(Color.theoCard(scheme))
@@ -199,7 +199,7 @@ private struct ValueRow: View {
 
     let icon: String
     let title: String
-    let body: String
+    let subtitle: String
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
@@ -213,7 +213,7 @@ private struct ValueRow: View {
                 Text(title)
                     .font(.system(size: 14, weight: .semibold, design: .serif))
                     .foregroundStyle(Color.theoText(scheme))
-                Text(body)
+                Text(subtitle)
                     .font(.system(size: 13, weight: .regular, design: .serif))
                     .foregroundStyle(Color.theoMuted)
             }

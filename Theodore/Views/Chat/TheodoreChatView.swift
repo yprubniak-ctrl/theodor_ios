@@ -141,7 +141,7 @@ struct TheodoreChatView: View {
     // ── Actions ───────────────────────────────────────────────
 
     private func sendMessage() {
-        guard \!inputText.isEmpty, let chapter else {
+        guard !inputText.isEmpty, let chapter else {
             // New chapter flow — first create a chapter from context
             // then send the message
             return

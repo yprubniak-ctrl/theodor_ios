@@ -41,8 +41,11 @@ final class TheodoreViewModel {
         streamingText = ""
 
         do {
-            let stream = theodore.continueConversation(
-                messages: chapter.messages.dropLast(),
+            let history = chapter.messages.dropLast().map {
+                APIMessage(role: $0.role.rawValue, content: $0.content)
+            }
+            let stream = await theodore.continueConversation(
+                history: history,
                 newMessage: message
             )
 
@@ -110,7 +113,7 @@ final class TheodoreViewModel {
 
             if !visionPhotos.isEmpty {
                 // Real vision: Theodore sees the actual photos
-                stream = theodore.generateChapter(photos: visionPhotos)
+                stream = await theodore.generateChapter(photos: visionPhotos)
             } else {
                 // Fallback: text descriptions only
                 let descriptions = selected.map { asset -> PhotoDescription in
@@ -122,7 +125,7 @@ final class TheodoreViewModel {
                         description: "Photo from \(formatter.string(from: meta.date))"
                     )
                 }
-                stream = theodore.generateChapterTextOnly(photoDescriptions: descriptions)
+                stream = await theodore.generateChapterTextOnly(photoDescriptions: descriptions)
             }
 
             generationPhase = .writing
@@ -191,8 +194,8 @@ final class TheodoreViewModel {
         """
 
         do {
-            let msg = ConversationMessage(role: .user, content: prompt)
-            let stream = theodore.continueConversation(messages: [msg], newMessage: "")
+            let history = [APIMessage(role: "user", content: prompt)]
+            let stream = await theodore.continueConversation(history: history, newMessage: "")
 
             for try await chunk in stream {
                 streamingText += chunk
