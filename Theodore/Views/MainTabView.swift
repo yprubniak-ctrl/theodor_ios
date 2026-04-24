@@ -15,6 +15,10 @@ struct MainTabView: View {
                     .tag(TheodoreTab.you)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            // Reserve space so tab content is never hidden behind the custom tab bar
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear.frame(height: 82)
+            }
 
             TheodoreTabBar(active: $activeTab)
         }
