@@ -2,8 +2,10 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("isOnboarded") private var isOnboarded = true
     @State private var notificationsEnabled = true
     @State private var fontSize: FontSizeOption = .medium
+    @State private var showResetConfirm = false
 
     enum FontSizeOption: String, CaseIterable {
         case small = "Small", medium = "Medium", large = "Large"
@@ -125,16 +127,27 @@ struct SettingsView: View {
             VStack(spacing: 0) {
                 SettingsRow(label: "Photo access", value: "All Photos")
                 Divider().overlay(Color.theoNavy.opacity(0.06))
-                HStack {
-                    Text("Delete all data")
-                        .font(.system(size: 14))
-                        .foregroundStyle(Color.theoNavy)
-                    Spacer()
-                    Text("Delete")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color(red: 0.75, green: 0.22, blue: 0.17))
+                Button {
+                    showResetConfirm = true
+                } label: {
+                    HStack {
+                        Text("Reset onboarding")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Color(red: 0.75, green: 0.22, blue: 0.17))
+                        Spacer()
+                        Text("→")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.theoMuted)
+                    }
+                    .padding(16)
                 }
-                .padding(16)
+                .buttonStyle(.plain)
+                .confirmationDialog("Reset onboarding?", isPresented: $showResetConfirm) {
+                    Button("Reset", role: .destructive) { isOnboarded = false }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This will restart the welcome flow.")
+                }
             }
         }
     }
