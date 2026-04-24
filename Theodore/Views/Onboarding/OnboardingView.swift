@@ -188,18 +188,26 @@ private struct ReadingView: View {
 
             Spacer().frame(height: 28)
 
-            // Animated photo strip
+            // Animated photo strip — real photos if available, else color blocks
+            let stripItems = viewModel.recentAssetIDs.isEmpty
+                ? (0..<(blockColors.count * 3)).map { StripItem.color(blockColors[$0 % blockColors.count]) }
+                : (Array(repeating: viewModel.recentAssetIDs, count: 3).flatMap { $0 }).map { StripItem.photo($0) }
+
             HStack(spacing: itemGap) {
-                ForEach(0..<(blockColors.count * 3), id: \.self) { i in
-                    RoundedRectangle(cornerRadius: 9)
-                        .fill(
-                            LinearGradient(
-                                colors: [blockColors[i % blockColors.count],
-                                         blockColors[i % blockColors.count].opacity(0.6)],
-                                startPoint: .topLeading, endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: itemWidth, height: 72)
+                ForEach(Array(stripItems.enumerated()), id: \.offset) { _, item in
+                    Group {
+                        switch item {
+                        case .color(let c):
+                            RoundedRectangle(cornerRadius: 9)
+                                .fill(LinearGradient(
+                                    colors: [c, c.opacity(0.6)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing))
+                        case .photo(let id):
+                            AsyncPhotoView(assetID: id, contentMode: .fill)
+                                .clipShape(RoundedRectangle(cornerRadius: 9))
+                        }
+                    }
+                    .frame(width: itemWidth, height: 72)
                 }
             }
             .offset(x: stripOffset)
@@ -447,6 +455,8 @@ private struct ProposalCard: View {
 // ── Phase enum & helpers ──────────────────────────────────────────
 
 enum OnboardingPhase { case splash, reading, proposals }
+
+private enum StripItem { case color(Color), photo(String) }
 
 extension Array {
     subscript(safe index: Int) -> Element? {

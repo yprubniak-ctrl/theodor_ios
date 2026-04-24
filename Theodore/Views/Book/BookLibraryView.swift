@@ -5,6 +5,7 @@ struct BookLibraryView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Chapter.createdAt) private var chapters: [Chapter]
 
+    @State private var showNewChapterRec = false
     @State private var showChat = false
     @State private var showPaywall = false
     @State private var selectedChapter: Chapter?
@@ -102,6 +103,17 @@ struct BookLibraryView: View {
             .navigationDestination(item: $selectedChapter) { chapter in
                 ChapterReadingView(chapter: chapter)
             }
+            .fullScreenCover(isPresented: $showNewChapterRec) {
+                NewChapterRecView(
+                    onStart: {
+                        showNewChapterRec = false
+                        showChat = true
+                    },
+                    onDismiss: { showNewChapterRec = false },
+                    assetIDs: viewModel.latestClusterAssetIDs,
+                    photoCount: viewModel.latestClusterAssetIDs.count
+                )
+            }
             .sheet(isPresented: $showChat) {
                 TheodoreChatView(chapter: nil)
             }
@@ -120,7 +132,11 @@ struct BookLibraryView: View {
     private func handleNewChapterTap() {
         if subscriptionService.canCreateChapter(existingCount: chapters.count) {
             NotificationService.shared.cancelNudge()
-            showChat = true
+            // Load recent asset IDs if not already loaded
+            if viewModel.recentAssetIDs.isEmpty {
+                Task { await viewModel.loadRecentAssetIDs() }
+            }
+            showNewChapterRec = true
         } else {
             showPaywall = true
         }

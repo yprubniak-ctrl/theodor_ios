@@ -17,6 +17,7 @@ final class BookViewModel {
     var readingProgress: [ReadingStep] = []
     var proposals: [ChapterProposal] = []
     var clusters: [PhotoCluster] = []
+    var recentAssetIDs: [String] = []   // populated early for photo strip UI
     var error: String?
 
     // ── MARK: Onboarding Flow ─────────────────────────────────
@@ -30,9 +31,15 @@ final class BookViewModel {
         isReadingGallery = true
         readingProgress = []
 
-        // Step 1
+        // Step 1 — fetch & expose recent asset IDs for the photo strip
         await addStep("A recurring face across 3 years")
         let fetchResult = photoService.fetchAllPhotos()
+        var ids: [String] = []
+        let count = min(fetchResult.count, 20)
+        fetchResult.enumerateObjects(at: IndexSet(0..<count), options: []) { asset, _, _ in
+            ids.append(asset.localIdentifier)
+        }
+        recentAssetIDs = ids
 
         // Step 2
         await addStep("A trip you took last autumn")
@@ -75,6 +82,22 @@ final class BookViewModel {
         book.chapters.append(chapter)
         context.insert(chapter)
         return chapter
+    }
+
+    /// Asset IDs from the most recent cluster — used by NewChapterRecView.
+    var latestClusterAssetIDs: [String] {
+        clusters.last?.assetIDs ?? recentAssetIDs
+    }
+
+    /// Lightweight fetch — just populates recentAssetIDs without full analysis.
+    func loadRecentAssetIDs() async {
+        let fetchResult = photoService.fetchAllPhotos()
+        var ids: [String] = []
+        let count = min(fetchResult.count, 20)
+        fetchResult.enumerateObjects(at: IndexSet(0..<count), options: []) { asset, _, _ in
+            ids.append(asset.localIdentifier)
+        }
+        recentAssetIDs = ids
     }
 
     // ── MARK: Nudge Logic ─────────────────────────────────────

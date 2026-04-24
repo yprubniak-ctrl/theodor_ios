@@ -3,6 +3,8 @@ import SwiftUI
 struct NewChapterRecView: View {
     let onStart: () -> Void
     let onDismiss: () -> Void
+    var assetIDs: [String] = []         // real photo asset IDs from the latest cluster
+    var photoCount: Int = 0             // total photo count for the "+N" badge
 
     private let reasons: [(icon: String, label: String, sub: String)] = [
         ("📸", "New photos available", "since your last chapter"),
@@ -93,27 +95,46 @@ struct NewChapterRecView: View {
         .padding(.bottom, 22)
     }
 
-    // ── Photo placeholder strip ───────────────────────────────────
+    // ── Photo strip ───────────────────────────────────────────────
 
     private var photoPlaceholderStrip: some View {
-        HStack(spacing: 8) {
-            ForEach(0..<3) { i in
-                let colors: [Color] = [
-                    Color(red: 0.867, green: 0.831, blue: 0.776),
-                    Color(red: 0.784, green: 0.812, blue: 0.847),
-                    Color(red: 0.804, green: 0.847, blue: 0.784),
-                ]
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(LinearGradient(
-                        colors: [colors[i], colors[i].opacity(0.5)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-                    .aspectRatio(1, contentMode: .fit)
-                    .overlay(
+        let shown = Array(assetIDs.prefix(3))
+        let overflow = max(0, photoCount - 3)
+        let fallbackColors: [Color] = [
+            Color(red: 0.867, green: 0.831, blue: 0.776),
+            Color(red: 0.784, green: 0.812, blue: 0.847),
+            Color(red: 0.804, green: 0.847, blue: 0.784),
+        ]
+
+        return HStack(spacing: 8) {
+            if shown.isEmpty {
+                ForEach(0..<3) { i in
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(LinearGradient(
+                            colors: [fallbackColors[i], fallbackColors[i].opacity(0.5)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .aspectRatio(1, contentMode: .fit)
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.6), lineWidth: 1.5))
+                }
+            } else {
+                ForEach(shown, id: \.self) { id in
+                    AsyncPhotoView(assetID: id, contentMode: .fill)
+                        .aspectRatio(1, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.6), lineWidth: 1.5))
+                }
+                if overflow > 0 {
+                    ZStack {
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.white.opacity(0.6), lineWidth: 1.5)
-                    )
+                            .fill(Color.theoNavy.opacity(0.08))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.theoNavy.opacity(0.10), lineWidth: 1.5))
+                        Text("+\(overflow)")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.theoMuted)
+                    }
+                    .aspectRatio(1, contentMode: .fit)
+                    .frame(width: 60)
+                }
             }
         }
         .padding(.bottom, 22)
@@ -194,7 +215,7 @@ struct NewChapterRecView: View {
                         .lineSpacing(3)
 
                     HStack(spacing: 16) {
-                        Text("your photos")
+                        Text(photoCount > 0 ? "\(photoCount) photos" : "your photos")
                             .font(.system(size: 11))
                             .foregroundStyle(Color.theoMuted)
                         Text("~3 weeks")
