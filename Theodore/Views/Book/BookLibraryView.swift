@@ -3,7 +3,6 @@ import SwiftData
 
 struct BookLibraryView: View {
     @Environment(\.modelContext) private var context
-    @Environment(\.colorScheme) private var scheme
     @Query(sort: \Chapter.createdAt) private var chapters: [Chapter]
 
     @State private var showChat = false
@@ -19,41 +18,61 @@ struct BookLibraryView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
-                Color.theoPaper(scheme).ignoresSafeArea()
+                // Parchment gradient background
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.961, green: 0.941, blue: 0.910),
+                        Color(red: 0.902, green: 0.867, blue: 0.816),
+                    ],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
 
                         // ── Header ───────────────────────────
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("My Book")
-                                .font(.theoTitle)
-                                .foregroundStyle(Color.theoText(scheme))
-                            Text("Written by Theodore")
-                                .font(.theoPoem)
-                                .foregroundStyle(Color.theoMuted)
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("My Book")
+                                    .font(.system(size: 24, weight: .bold, design: .serif))
+                                    .foregroundStyle(Color.theoNavy)
+                                Text("\(chapters.count) chapter\(chapters.count == 1 ? "" : "s")  ·  \(totalPhotos) photos")
+                                    .font(.system(size: 11, weight: .regular))
+                                    .foregroundStyle(Color.theoMuted)
+                            }
+                            Spacer()
+                            TLogo(size: 34)
                         }
                         .padding(.horizontal, 24)
                         .padding(.top, 16)
-                        .padding(.bottom, 12)
+                        .padding(.bottom, 20)
+                        .background(Color.theoParch.opacity(0.85).background(.ultraThinMaterial))
+                        .overlay(alignment: .bottom) {
+                            Rectangle()
+                                .fill(Color.theoNavy.opacity(0.06))
+                                .frame(height: 1)
+                        }
 
-                        // ── Stats ────────────────────────────
-                        Text("\(chapters.count) chapters  ·  \(totalPhotos) photos")
-                            .font(.theoCaption)
-                            .foregroundStyle(Color.theoMuted2)
-                            .padding(.horizontal, 24)
-
-                        Divider().padding(.horizontal, 24).padding(.vertical, 12)
-
-                        // ── Theodore nudge ───────────────────
+                        // ── Theodore nudge card ───────────────
                         if newPhotoCount >= NotificationService.nudgePhotoThreshold {
                             NudgeCard(count: newPhotoCount) { handleNewChapterTap() }
                                 .padding(.horizontal, 16)
-                                .padding(.bottom, 12)
+                                .padding(.top, 16)
+                                .padding(.bottom, 4)
                         }
 
+                        // ── Chapters label ───────────────────
+                        Text("CHAPTERS")
+                            .font(.theoLabel)
+                            .foregroundStyle(Color.theoBrown)
+                            .tracking(1.2)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 20)
+                            .padding(.bottom, 12)
+
                         // ── Chapter list ─────────────────────
-                        LazyVStack(spacing: 6) {
+                        LazyVStack(spacing: 8) {
                             ForEach(Array(chapters.enumerated()), id: \.element.id) { i, chapter in
                                 ChapterRow(number: i + 1, chapter: chapter)
                                     .onTapGesture {
@@ -70,13 +89,13 @@ struct BookLibraryView: View {
                 // ── FAB — new chapter ─────────────────────────
                 Button { handleNewChapterTap() } label: {
                     Image(systemName: "plus")
-                        .font(.system(size: 22, weight: .medium))
-                        .foregroundStyle(Color.theoCream)
-                        .frame(width: 56, height: 56)
-                        .background(Color.theoRed, in: Circle())
-                        .shadow(color: Color.theoRed.opacity(0.4), radius: 12, y: 4)
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(Color.theoParch)
+                        .frame(width: 52, height: 52)
+                        .background(Color.theoNavy, in: Circle())
+                        .shadow(color: Color.theoNavy.opacity(0.28), radius: 24, y: 8)
                 }
-                .padding(.trailing, 24)
+                .padding(.trailing, 20)
                 .padding(.bottom, 32)
             }
             .navigationBarHidden(true)
@@ -88,7 +107,6 @@ struct BookLibraryView: View {
             }
             .paywallGate(isPresented: $showPaywall)
             .task {
-                // Schedule notification nudge on app open if new photos accumulate
                 if newPhotoCount >= NotificationService.nudgePhotoThreshold {
                     await NotificationService.shared.scheduleNudge(newPhotoCount: newPhotoCount)
                 }
@@ -101,7 +119,6 @@ struct BookLibraryView: View {
 
     private func handleNewChapterTap() {
         if subscriptionService.canCreateChapter(existingCount: chapters.count) {
-            // Cancel the nudge notification — user is acting on it
             NotificationService.shared.cancelNudge()
             showChat = true
         } else {
@@ -117,94 +134,115 @@ struct BookLibraryView: View {
 // ── MARK: NudgeCard ───────────────────────────────────────────────
 
 private struct NudgeCard: View {
-    @Environment(\.colorScheme) private var scheme
     let count: Int
     let onTap: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "sparkles")
-                .foregroundStyle(Color.theoAmber)
+        HStack(alignment: .top, spacing: 12) {
+            RoundedRectangle(cornerRadius: 9)
+                .fill(Color.theoGold.opacity(0.12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9)
+                        .stroke(Color.theoGold.opacity(0.20), lineWidth: 1)
+                )
+                .frame(width: 32, height: 32)
+                .overlay {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.theoGold)
+                }
 
-            Text("\"You've added \(count) new photos since we last spoke. Shall I write about them?\"")
-                .font(.theoCaption.italic())
-                .foregroundStyle(Color.theoText(scheme))
-
+            VStack(alignment: .leading, spacing: 8) {
+                Text("\"You've added \(count) new photos since we last spoke. Shall I write about them?\"")
+                    .font(.system(size: 13, weight: .regular, design: .serif).italic())
+                    .foregroundStyle(Color.theoNavy)
+                    .lineSpacing(4)
+                Button("Start new chapter →", action: onTap)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.theoBrown)
+            }
             Spacer()
-
-            Button("Write →", action: onTap)
-                .font(.theoLabel)
-                .foregroundStyle(Color.theoAmber)
         }
         .padding(16)
-        .background(Color.theoCard(scheme), in: RoundedRectangle(cornerRadius: 14))
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(Color.theoAmber)
-                .frame(width: 3)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .glassCard(cornerRadius: 20)
     }
 }
 
 // ── MARK: ChapterRow ──────────────────────────────────────────────
 
 private struct ChapterRow: View {
-    @Environment(\.colorScheme) private var scheme
     let number: Int
     let chapter: Chapter
 
-    var body: some View {
-        HStack(spacing: 14) {
+    private let romans = ["I","II","III","IV","V","VI","VII","VIII","IX","X"]
 
-            // Thumbnail — real photo if available
-            if let coverID = chapter.coverAssetID {
-                PhotoThumbnail(assetID: coverID, size: 70, cornerRadius: 10)
-            } else {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.theoS2)
-                        .frame(width: 70, height: 70)
-                    Text("\(number)")
-                        .font(.system(size: 22, weight: .semibold, design: .serif))
-                        .foregroundStyle(Color.theoText(scheme).opacity(0.15))
+    var body: some View {
+        HStack(spacing: 0) {
+            // Roman numeral / photo thumb
+            ZStack {
+                Rectangle()
+                    .fill(Color.theoNavy.opacity(0.04))
+                if let coverID = chapter.coverAssetID {
+                    PhotoThumbnail(assetID: coverID, size: 64, cornerRadius: 0)
+                        .opacity(chapter.isRead ? 0.65 : 1)
+                } else {
+                    Text(number <= romans.count ? romans[number - 1] : "\(number)")
+                        .font(.system(size: 11, weight: .semibold, design: .serif))
+                        .foregroundStyle(Color.theoMuted)
+                        .tracking(0.5)
                 }
+            }
+            .frame(width: 48)
+            .overlay(alignment: .trailing) {
+                Rectangle()
+                    .fill(Color.theoNavy.opacity(0.06))
+                    .frame(width: 1)
             }
 
             // Info
             VStack(alignment: .leading, spacing: 4) {
                 Text(chapter.title)
-                    .font(.system(size: 16, weight: .semibold, design: .serif))
-                    .foregroundStyle(Color.theoText(scheme))
+                    .font(.system(size: 15, weight: .bold, design: .serif))
+                    .foregroundStyle(Color.theoNavy)
                     .opacity(chapter.isRead ? 0.75 : 1)
 
                 Text(chapter.period)
-                    .font(.theoCaption)
-                    .foregroundStyle(Color.theoAmber)
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(Color.theoMuted)
 
                 Text(chapter.openingLines.isEmpty ? chapter.moodTag : chapter.openingLines)
-                    .font(.theoCaption.italic())
-                    .foregroundStyle(Color.theoMuted)
+                    .font(.system(size: 12, weight: .regular, design: .serif).italic())
+                    .foregroundStyle(Color.theoSlate)
                     .lineLimit(2)
+                    .lineSpacing(2)
 
-                Text("\(chapter.photoAssetIDs.count) photos")
-                    .font(.theoCaption)
-                    .foregroundStyle(Color.theoMuted2)
+                Text("\(chapter.photoAssetIDs.count) photo\(chapter.photoAssetIDs.count == 1 ? "" : "s")")
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(Color.theoMuted)
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 14)
 
             Spacer()
 
             VStack(spacing: 8) {
                 if !chapter.isRead {
-                    Circle().fill(Color.theoRed).frame(width: 8, height: 8)
+                    Circle()
+                        .fill(Color.theoGold)
+                        .frame(width: 6, height: 6)
                 }
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.theoMuted2)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.theoMuted)
             }
+            .padding(.trailing, 12)
         }
-        .padding(14)
-        .background(Color.theoCard(scheme), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color.white.opacity(0.62), in: RoundedRectangle(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.white.opacity(0.80), lineWidth: 1)
+        )
+        .shadow(color: Color.theoNavy.opacity(0.04), radius: 12, x: 0, y: 2)
+        .clipped()
     }
 }

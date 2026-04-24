@@ -3,25 +3,29 @@ import SwiftData
 
 struct OnboardingView: View {
     @Environment(\.modelContext) private var context
-    @Environment(\.colorScheme) private var scheme
     @State private var viewModel = BookViewModel()
     @State private var phase: OnboardingPhase = .splash
     @Binding var isOnboarded: Bool
 
     var body: some View {
         ZStack {
-            Color.theoPaper(scheme).ignoresSafeArea()
+            // Parchment gradient fills the whole screen
+            LinearGradient(
+                colors: [
+                    Color(red: 0.961, green: 0.941, blue: 0.910),
+                    Color(red: 0.902, green: 0.867, blue: 0.816),
+                ],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
             switch phase {
-            case .splash:      SplashView(onContinue: requestAccess)
-            case .reading:     ReadingView(viewModel: viewModel)
-            case .proposals:   ProposalsView(
-                                  viewModel: viewModel,
-                                  onSelect: createChapter
-                               )
+            case .splash:    WelcomeView(onNext: requestAccess)
+            case .reading:   ReadingView(viewModel: viewModel)
+            case .proposals: ProposalsView(viewModel: viewModel, onSelect: createChapter)
             }
         }
-        .animation(.easeInOut(duration: 0.4), value: phase)
+        .animation(.easeInOut(duration: 0.35), value: phase)
     }
 
     // ── Actions ───────────────────────────────────────────────
@@ -39,13 +43,11 @@ struct OnboardingView: View {
 
     private func createChapter(proposal: ChapterProposal) {
         Task {
-            // Fetch or create the user's Book
             let descriptor = FetchDescriptor<Book>()
             let books = (try? context.fetch(descriptor)) ?? []
             let book = books.first ?? {
                 let b = Book(); context.insert(b); return b
             }()
-
             _ = await viewModel.createChapter(from: proposal, in: book, context: context)
             try? context.save()
             isOnboarded = true
@@ -53,223 +55,396 @@ struct OnboardingView: View {
     }
 }
 
-// ── Sub-views ─────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+// SCREEN 1 — Welcome
+// ══════════════════════════════════════════════════════════════════
 
-private struct SplashView: View {
-    @Environment(\.colorScheme) private var scheme
-    let onContinue: () -> Void
+private struct WelcomeView: View {
+    let onNext: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
-            TheodoreAvatar(size: 88, glowing: true)
-            Spacer().frame(height: 28)
-            Text("Theodore")
-                .font(.theoTitle)
-                .foregroundStyle(Color.theoText(scheme))
-            Spacer().frame(height: 6)
-            Text("Your ghost writer")
-                .font(.theoPoem)
-                .foregroundStyle(Color.theoAmber)
-            Spacer().frame(height: 20)
-            Divider().frame(width: 64).overlay(Color.theoMuted2)
-            Spacer().frame(height: 20)
-            Text("Theodore reads your photos and writes\nyour autobiography — one chapter at a time.")
-                .font(.theoBody)
-                .foregroundStyle(Color.theoMuted)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            Spacer()
 
-            // Permission card
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Access your photo library", systemImage: "photo.on.rectangle")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.theoText(scheme))
-                Text("Theodore reads your existing photos\nto find the stories already there.")
-                    .font(.theoCaption)
-                    .foregroundStyle(Color.theoMuted)
-                Button(action: onContinue) {
-                    Text("Let Theodore read my photos")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color.theoCream)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.theoRed, in: RoundedRectangle(cornerRadius: 14))
+            // Logo + title
+            VStack(spacing: 16) {
+                TLogo(size: 56)
+                VStack(spacing: 6) {
+                    Text("Theodore")
+                        .font(.system(size: 34, weight: .bold, design: .serif))
+                        .foregroundStyle(Color.theoNavy)
+                    Text("Your ghost writer")
+                        .font(.system(size: 17, weight: .regular, design: .serif).italic())
+                        .foregroundStyle(Color.theoSlate)
                 }
+                GoldLine()
+            }
+
+            Spacer().frame(height: 32)
+
+            // Description
+            Text("Reads your photos and writes your autobiography — one chapter at a time.")
+                .font(.system(size: 16, weight: .regular, design: .serif))
+                .foregroundStyle(Color.theoSlate)
+                .multilineTextAlignment(.center)
+                .lineSpacing(6)
+                .padding(.horizontal, 40)
+
+            Spacer().frame(height: 28)
+
+            // Glass card — what Theodore does
+            HStack(alignment: .top, spacing: 14) {
+                RoundedRectangle(cornerRadius: 11)
+                    .fill(Color.theoGold.opacity(0.12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 11)
+                            .stroke(Color.theoGold.opacity(0.20), lineWidth: 1)
+                    )
+                    .frame(width: 40, height: 40)
+                    .overlay {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 16))
+                            .foregroundStyle(Color.theoGold)
+                    }
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Access your photo library")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.theoNavy)
+                    Text("Theodore reads your existing photos to find the stories already there.")
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(Color.theoMuted)
+                        .lineSpacing(3)
+                }
+                Spacer()
             }
             .padding(20)
-            .background(Color.theoCard(scheme), in: RoundedRectangle(cornerRadius: 20))
-            .padding(.horizontal, 24)
+            .glassCard(cornerRadius: 22)
+            .padding(.horizontal, 28)
 
-            Spacer().frame(height: 16)
-            Text("Nothing leaves your device without your approval")
-                .font(.theoCaption)
-                .foregroundStyle(Color.theoMuted2)
-            Spacer().frame(height: 8)
-            Text("\"I'm never lonely.\" — Her, 2013")
-                .font(.theoCaption.italic())
-                .foregroundStyle(Color.theoMuted2.opacity(0.6))
-            Spacer().frame(height: 32)
+            Spacer()
+
+            // CTA
+            VStack(spacing: 0) {
+                PrimaryButton(title: "Let Theodore read my photos", action: onNext)
+                    .padding(.horizontal, 28)
+
+                Spacer().frame(height: 14)
+
+                Text("Nothing leaves your device without your approval")
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(Color.theoMuted)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.bottom, 40)
         }
     }
 }
+
+// ══════════════════════════════════════════════════════════════════
+// SCREEN 2 — Reading (Theodore analysing photos)
+// ══════════════════════════════════════════════════════════════════
 
 private struct ReadingView: View {
-    @Environment(\.colorScheme) private var scheme
     let viewModel: BookViewModel
 
+    // Animated strip
+    @State private var stripOffset: CGFloat = 0
+    private let blockColors: [Color] = [
+        Color(red: 0.867, green: 0.831, blue: 0.776),
+        Color(red: 0.784, green: 0.816, blue: 0.847),
+        Color(red: 0.800, green: 0.847, blue: 0.784),
+        Color(red: 0.847, green: 0.784, blue: 0.808),
+        Color(red: 0.784, green: 0.784, blue: 0.847),
+        Color(red: 0.867, green: 0.851, blue: 0.792),
+        Color(red: 0.800, green: 0.824, blue: 0.847),
+        Color(red: 0.816, green: 0.851, blue: 0.800),
+    ]
+    private let itemWidth: CGFloat = 50
+    private let itemGap:  CGFloat = 6
+
+    private var oneSetWidth: CGFloat {
+        CGFloat(blockColors.count) * (itemWidth + itemGap)
+    }
+
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 0) {
+            // Top bar
+            TheodoreBar(center: AnyView(TLogo(size: 28)))
+
             Spacer()
-            TheodoreAvatar(size: 32, glowing: false)
-            VStack(spacing: 8) {
+
+            // Heading
+            VStack(spacing: 10) {
                 Text("Theodore is reading\nyour photos")
-                    .font(.theoHeading)
-                    .foregroundStyle(Color.theoText(scheme))
+                    .font(.system(size: 26, weight: .bold, design: .serif))
+                    .foregroundStyle(Color.theoNavy)
                     .multilineTextAlignment(.center)
+                    .lineSpacing(4)
                 Text("Give him a moment.")
-                    .font(.theoPoem)
+                    .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(Color.theoMuted)
             }
+            .padding(.horizontal, 40)
 
-            // Notice list
+            Spacer().frame(height: 28)
+
+            // Animated photo strip
+            HStack(spacing: itemGap) {
+                ForEach(0..<(blockColors.count * 3), id: \.self) { i in
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(
+                            LinearGradient(
+                                colors: [blockColors[i % blockColors.count],
+                                         blockColors[i % blockColors.count].opacity(0.6)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: itemWidth, height: 72)
+                }
+            }
+            .offset(x: stripOffset)
+            .frame(height: 72, alignment: .leading)
+            .clipped()
+            .onAppear {
+                withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
+                    stripOffset = -oneSetWidth
+                }
+            }
+
+            Spacer().frame(height: 20)
+
+            // Noticing card
             VStack(alignment: .leading, spacing: 0) {
-                Text("Theodore is noticing...")
+                Text("THEODORE IS NOTICING")
                     .font(.theoLabel)
-                    .foregroundStyle(Color.theoAmber)
-                    .padding(.bottom, 10)
-                Divider().overlay(Color.theoS3)
-                ForEach(viewModel.readingProgress) { step in
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(step.isDone ? Color.theoRed :
-                                  step.isActive ? Color.theoAmber : Color.theoMuted2)
-                            .frame(width: step.isActive ? 10 : 8, height: step.isActive ? 10 : 8)
-                        Text(step.text)
-                            .font(step.isActive ? .system(size: 13, weight: .semibold, design: .serif)
-                                               : .theoCaption)
-                            .foregroundStyle(step.isDone ? Color.theoMuted :
-                                             step.isActive ? Color.theoText(scheme) : Color.theoMuted2)
+                    .foregroundStyle(Color.theoBrown)
+                    .tracking(1.2)
+                    .padding(.bottom, 14)
+
+                Rectangle()
+                    .fill(Color.theoGold.opacity(0.25))
+                    .frame(height: 1)
+                    .padding(.bottom, 16)
+
+                VStack(alignment: .leading, spacing: 13) {
+                    if viewModel.readingProgress.isEmpty {
+                        Text("Looking at your photos…")
+                            .font(.system(size: 13, weight: .regular, design: .serif).italic())
+                            .foregroundStyle(Color.theoMuted)
                     }
-                    .padding(.vertical, 10)
+                    ForEach(viewModel.readingProgress) { step in
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(step.isActive ? Color.theoGold : Color.theoNavy.opacity(0.25))
+                                .frame(width: 5, height: 5)
+                            Text(step.text)
+                                .font(.system(size: 13, weight: step.isActive ? .semibold : .regular, design: .serif))
+                                .foregroundStyle(step.isActive ? Color.theoNavy : Color.theoSlate)
+                        }
+                    }
+                }
+                .frame(minHeight: 80, alignment: .topLeading)
+
+                // "Finding the words" loader
+                if !viewModel.readingProgress.isEmpty &&
+                    viewModel.readingProgress.last?.isDone == false {
+                    HStack(spacing: 8) {
+                        Text("Finding the words")
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(Color.theoMuted)
+                        HStack(spacing: 4) {
+                            ForEach(0..<3, id: \.self) { _ in
+                                Circle()
+                                    .fill(Color.theoGold)
+                                    .frame(width: 5, height: 5)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                    .background(Color.theoGold.opacity(0.08),
+                                in: RoundedRectangle(cornerRadius: 13))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 13)
+                            .stroke(Color.theoGold.opacity(0.20), lineWidth: 1)
+                    )
+                    .padding(.top, 18)
                 }
             }
             .padding(20)
-            .background(Color.theoCard(scheme), in: RoundedRectangle(cornerRadius: 20))
-            .padding(.horizontal, 32)
+            .glassCard(cornerRadius: 22)
+            .padding(.horizontal, 20)
 
             Spacer()
         }
     }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// SCREEN 3 — Chapter proposals
+// ══════════════════════════════════════════════════════════════════
+
 private struct ProposalsView: View {
-    @Environment(\.colorScheme) private var scheme
     let viewModel: BookViewModel
     let onSelect: (ChapterProposal) -> Void
     @State private var selected: Int = 0
 
     var body: some View {
         VStack(spacing: 0) {
-            // Theodore's message
+            // Top bar
+            TheodoreBar(center: AnyView(TLogo(size: 26)))
+
+            // Theodore's quote card
             HStack(alignment: .top, spacing: 12) {
-                TheodoreAvatar(size: 26)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("I've been through your photos.\nI found \(viewModel.proposals.count) stories worth telling.\nShall I write them?")
-                        .font(.theoPoem)
-                        .foregroundStyle(Color.theoText(scheme))
+                Rectangle()
+                    .fill(Color.theoGold)
+                    .frame(width: 2)
+                    .cornerRadius(99)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(viewModel.proposals.isEmpty
+                         ? "I've been through your photos.\nI found 0 stories worth telling.\nShall I write them?"
+                         : "I've looked at your photos carefully.\nI found \(viewModel.proposals.count) stories worth telling.\nShall I write them?")
+                        .font(.system(size: 14, weight: .regular, design: .serif).italic())
+                        .foregroundStyle(Color.theoNavy)
+                        .lineSpacing(4)
                     Text("Theodore  ·  just now")
-                        .font(.theoCaption)
+                        .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(Color.theoMuted)
                 }
                 Spacer()
             }
-            .padding(20)
-            .background(Color.theoCard(scheme))
+            .padding(18)
+            .glassCard(cornerRadius: 20)
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
 
-            Text("Choose what to write first")
+            // Error
+            if let errorMsg = viewModel.error {
+                Text("Error: \(errorMsg)")
+                    .font(.theoCaption)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+            }
+
+            // Label
+            Text("CHOOSE WHAT TO WRITE FIRST")
                 .font(.theoLabel)
-                .foregroundStyle(Color.theoAmber)
-                .padding(.vertical, 12)
+                .foregroundStyle(Color.theoBrown)
+                .tracking(1.2)
+                .padding(.vertical, 14)
 
+            // Chapter cards
             ScrollView {
                 VStack(spacing: 8) {
                     ForEach(Array(viewModel.proposals.enumerated()), id: \.offset) { i, proposal in
-                        ProposalCard(proposal: proposal, isSelected: selected == i)
-                            .onTapGesture { selected = i }
+                        ProposalCard(
+                            proposal: proposal,
+                            index: i,
+                            isSelected: selected == i
+                        )
+                        .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { selected = i } }
                     }
                 }
                 .padding(.horizontal, 16)
+                .padding(.bottom, 8)
             }
 
-            Spacer(minLength: 16)
+            Spacer(minLength: 12)
 
+            // CTA
             if let proposal = viewModel.proposals[safe: selected] {
-                Button {
-                    onSelect(proposal)
-                } label: {
-                    Text("Write \"\(proposal.title)\"")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color.theoCream)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.theoRed, in: RoundedRectangle(cornerRadius: 14))
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 32)
+                PrimaryButton(title: "Write \"\(proposal.title)\"", action: { onSelect(proposal) })
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 36)
             }
         }
     }
 }
 
 private struct ProposalCard: View {
-    @Environment(\.colorScheme) private var scheme
     let proposal: ChapterProposal
+    let index: Int
     let isSelected: Bool
 
+    private let romans = ["I","II","III","IV","V","VI","VII","VIII","IX","X"]
+
     var body: some View {
-        HStack(alignment: .top) {
+        HStack(spacing: 0) {
+            // Roman numeral column
+            ZStack {
+                Rectangle()
+                    .fill(isSelected
+                          ? Color.theoGold.opacity(0.12)
+                          : Color.theoNavy.opacity(0.04))
+                Text(index < romans.count ? romans[index] : "\(index + 1)")
+                    .font(.system(size: 11, weight: .semibold, design: .serif))
+                    .foregroundStyle(isSelected ? Color.theoGold : Color.theoMuted)
+                    .tracking(0.5)
+            }
+            .frame(width: 64)
+            .overlay(alignment: .trailing) {
+                Rectangle()
+                    .fill(isSelected
+                          ? Color.theoGold.opacity(0.20)
+                          : Color.theoNavy.opacity(0.06))
+                    .frame(width: 1)
+            }
+
+            // Info
             VStack(alignment: .leading, spacing: 4) {
-                Text(proposal.title)
-                    .font(.system(size: 16, weight: .semibold, design: .serif))
-                    .foregroundStyle(Color.theoText(scheme))
+                HStack(alignment: .top) {
+                    Text(proposal.title)
+                        .font(.system(size: 15, weight: .bold, design: .serif))
+                        .foregroundStyle(Color.theoNavy)
+                    Spacer()
+                    if isSelected {
+                        ZStack {
+                            Circle().fill(Color.theoGold)
+                                .frame(width: 16, height: 16)
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                }
                 Text(proposal.mood)
-                    .font(.theoCaption)
-                    .foregroundStyle(Color.theoAmber)
-                Text(proposal.description)
-                    .font(.theoCaption.italic())
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(Color.theoMuted)
+                    .tracking(0.5)
+                    .padding(.top, 1)
+                Text(proposal.description)
+                    .font(.system(size: 12, weight: .regular, design: .serif))
+                    .foregroundStyle(Color.theoSlate)
+                    .lineSpacing(3)
                     .lineLimit(2)
             }
-            Spacer()
-            if isSelected {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.theoRed)
-                    .padding(6)
-                    .background(Color.theoRed.opacity(0.15), in: Circle())
-            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 14)
         }
-        .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.theoCard(scheme))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(isSelected ? Color.theoRed.opacity(0.6) : .clear, lineWidth: 1.5)
-                )
+            isSelected ? Color.white.opacity(0.78) : Color.white.opacity(0.62),
+            in: RoundedRectangle(cornerRadius: 18)
         )
         .overlay(
-            Rectangle()
-                .fill(isSelected ? Color.theoRed : Color.clear)
-                .frame(width: 3)
-                .clipShape(RoundedRectangle(cornerRadius: 2)),
-            alignment: .leading
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(
+                    isSelected ? Color.theoGold.opacity(0.35) : Color.white.opacity(0.80),
+                    lineWidth: 1
+                )
         )
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
+        .shadow(
+            color: isSelected
+                ? Color.theoGold.opacity(0.12)
+                : Color.theoNavy.opacity(0.04),
+            radius: isSelected ? 24 : 12, x: 0, y: isSelected ? 4 : 2
+        )
+        .clipped()
     }
 }
+
+// ── Phase enum & helpers ──────────────────────────────────────────
 
 enum OnboardingPhase { case splash, reading, proposals }
 

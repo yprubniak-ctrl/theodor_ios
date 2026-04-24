@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct ChapterReadingView: View {
     @Environment(\.colorScheme) private var scheme
@@ -15,7 +16,12 @@ struct ChapterReadingView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Color.theoPaper(scheme).ignoresSafeArea()
+            LinearGradient(
+                colors: [Color(red: 0.961, green: 0.941, blue: 0.910),
+                         Color(red: 0.902, green: 0.867, blue: 0.816)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
             ScrollViewReader { proxy in
                 ScrollView {
@@ -45,8 +51,9 @@ struct ChapterReadingView: View {
                             }
 
                             Rectangle()
-                                .fill(Color.theoRed.opacity(0.7))
-                                .frame(width: 48, height: 2)
+                                .fill(Color.theoGold)
+                                .frame(width: 32, height: 1.5)
+                                .cornerRadius(99)
                                 .padding(.top, 4)
                         }
                         .padding(.horizontal, 24)
@@ -160,7 +167,7 @@ struct ChapterReadingView: View {
             }
             .frame(height: 3)
         }
-        .background(Color.theoPaper(scheme))
+        .background(Color.theoParch)
     }
 
     // ── Helpers ───────────────────────────────────────────────

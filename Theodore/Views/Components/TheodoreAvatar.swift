@@ -1,33 +1,27 @@
 import SwiftUI
 
+// The "T" avatar — navy rounded square, used in chat and bars
 struct TheodoreAvatar: View {
     var size: CGFloat = 44
-    var glowing: Bool = false
+    var glowing: Bool = false  // kept for API compat
 
     var body: some View {
-        ZStack {
-            if glowing {
-                Circle()
-                    .fill(Color.theoRed.opacity(0.15))
-                    .frame(width: size + 10, height: size + 10)
+        RoundedRectangle(cornerRadius: size * 0.24)
+            .fill(Color.theoNavy)
+            .frame(width: size, height: size)
+            .overlay {
+                Text("T")
+                    .font(.system(size: size * 0.50, weight: .bold, design: .serif))
+                    .foregroundStyle(Color.theoParch)
             }
-            Circle()
-                .fill(Color.theoSurface)
-                .frame(width: size, height: size)
-            Circle()
-                .fill(Color.theoS2)
-                .frame(width: size - 6, height: size - 6)
-            Text("T")
-                .font(.system(size: size * 0.38, weight: .semibold, design: .serif))
-                .foregroundStyle(Color.theoAmber)
-        }
     }
 }
+
+// ── Chat message bubble ───────────────────────────────────────────
 
 struct MessageBubble: View {
     let content: String
     let isUser: Bool
-    @Environment(\.colorScheme) var scheme
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -35,18 +29,25 @@ struct MessageBubble: View {
                 TheodoreAvatar(size: 28)
             }
 
-            Text(isUser ? content : content)
+            Text(content)
                 .font(isUser ? .theoBody : .theoPoem)
-                .foregroundStyle(Color.theoText(scheme))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .foregroundStyle(Color.theoNavy)
+                .padding(.horizontal, 15)
+                .padding(.vertical, 11)
                 .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(isUser
-                              ? Color.theoRed.opacity(0.12)
-                              : Color.theoCard(scheme))
+                    isUser
+                        ? Color.theoNavy.opacity(0.08)
+                        : Color.white.opacity(0.62),
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
                 )
-                .frame(maxWidth: 280, alignment: isUser ? .trailing : .leading)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(
+                            isUser ? Color.theoNavy.opacity(0.10) : Color.white.opacity(0.80),
+                            lineWidth: 1
+                        )
+                )
+                .frame(maxWidth: 260, alignment: isUser ? .trailing : .leading)
 
             if isUser { Spacer(minLength: 0) }
         }
@@ -55,32 +56,32 @@ struct MessageBubble: View {
     }
 }
 
+// ── Typing indicator (three gold pulsing dots) ────────────────────
+
 struct TypingIndicator: View {
     @State private var phase: Int = 0
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 8) {
             TheodoreAvatar(size: 28)
             HStack(spacing: 5) {
                 ForEach(0..<3) { i in
                     Circle()
-                        .fill(Color.theoAmber)
-                        .frame(width: 7, height: 7)
-                        .opacity(phase == i ? 1.0 : 0.3)
+                        .fill(Color.theoGold)
+                        .frame(width: 5, height: 5)
+                        .opacity(phase == i ? 0.9 : 0.25)
+                        .scaleEffect(phase == i ? 1 : 0.7)
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 15)
             .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color.theoSurface)
-            )
+            .glassCard(cornerRadius: 18)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
         .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-                withAnimation(.easeInOut(duration: 0.5)) {
+            Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
+                withAnimation(.easeInOut(duration: 0.4)) {
                     phase = (phase + 1) % 3
                 }
             }
