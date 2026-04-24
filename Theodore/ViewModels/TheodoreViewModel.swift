@@ -14,6 +14,15 @@ final class TheodoreViewModel {
     var generationPhase: GenerationPhase = .idle
     var error: String?
 
+    // In-memory history for freeform (no-chapter) chat
+    var freeformMessages: [FreeformMessage] = []
+
+    struct FreeformMessage: Identifiable {
+        let id = UUID()
+        let role: String   // "user" or "assistant"
+        let content: String
+    }
+
     enum GenerationPhase: String {
         case idle         = ""
         case loadingPhotos = "Loading your photos…"
@@ -60,6 +69,34 @@ final class TheodoreViewModel {
             context.insert(assistantMsg)
             streamingText = ""
 
+        } catch {
+            self.error = error.localizedDescription
+        }
+
+        isGenerating = false
+        generationPhase = .idle
+    }
+
+    // ── MARK: Freeform Send (no chapter) ─────────────────────
+
+    func sendFreeform(message: String) async {
+        freeformMessages.append(FreeformMessage(role: "user", content: message))
+
+        isGenerating = true
+        generationPhase = .writing
+        streamingText = ""
+
+        let history = freeformMessages.dropLast().map {
+            APIMessage(role: $0.role, content: $0.content)
+        }
+
+        do {
+            let stream = await theodore.continueConversation(history: Array(history), newMessage: message)
+            for try await chunk in stream {
+                streamingText += chunk
+            }
+            freeformMessages.append(FreeformMessage(role: "assistant", content: streamingText))
+            streamingText = ""
         } catch {
             self.error = error.localizedDescription
         }

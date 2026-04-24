@@ -40,8 +40,14 @@ struct TheodoreChatView: View {
                                     .padding(.bottom, 4)
                             }
 
+                            // Persisted chapter messages
                             ForEach(messages) { message in
                                 MessageBubble(content: message.content, isUser: message.role == .user)
+                                    .id(message.id)
+                            }
+                            // Freeform (no chapter) messages
+                            ForEach(viewModel.freeformMessages) { message in
+                                MessageBubble(content: message.content, isUser: message.role == "user")
                                     .id(message.id)
                             }
 
@@ -61,7 +67,11 @@ struct TheodoreChatView: View {
                         .padding(.bottom, 120)
                     }
                     .onChange(of: viewModel.streamingText) {
-                        proxy.scrollTo(messages.last?.id)
+                        if let id = messages.last?.id {
+                            proxy.scrollTo(id)
+                        } else if let id = viewModel.freeformMessages.last?.id {
+                            proxy.scrollTo(id)
+                        }
                     }
                     .onChange(of: viewModel.isGenerating) { _, generating in
                         if !generating, !viewModel.streamingText.isEmpty {
@@ -341,12 +351,16 @@ struct TheodoreChatView: View {
     // ── Send ──────────────────────────────────────────────────────
 
     private func sendMessage() {
-        guard !inputText.isEmpty, let chapter else { return }
+        guard !inputText.isEmpty else { return }
         let text = inputText
         inputText = ""
         finalDraft = nil
         Task {
-            await viewModel.send(message: text, chapter: chapter, context: context)
+            if let chapter {
+                await viewModel.send(message: text, chapter: chapter, context: context)
+            } else {
+                await viewModel.sendFreeform(message: text)
+            }
         }
     }
 }
