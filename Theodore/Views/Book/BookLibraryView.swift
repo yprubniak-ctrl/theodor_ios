@@ -9,6 +9,7 @@ struct BookLibraryView: View {
     @State private var showChat = false
     @State private var showPaywall = false
     @State private var selectedChapter: Chapter?
+    @State private var pendingChatChapter: Chapter?
     @State private var viewModel = BookViewModel()
 
     @ObservedObject private var subscriptionService = SubscriptionService.shared
@@ -117,8 +118,19 @@ struct BookLibraryView: View {
             .sheet(isPresented: $showChat) {
                 TheodoreChatView(chapter: nil)
             }
+            .sheet(item: $pendingChatChapter) { chapter in
+                TheodoreChatView(chapter: chapter)
+            }
             .paywallGate(isPresented: $showPaywall)
             .task {
+                // Open chat for a chapter that was just created during onboarding
+                if let idString = UserDefaults.standard.string(forKey: "pendingChapterID"),
+                   let id = UUID(uuidString: idString),
+                   let chapter = chapters.first(where: { $0.id == id }) {
+                    UserDefaults.standard.removeObject(forKey: "pendingChapterID")
+                    try? await Task.sleep(nanoseconds: 400_000_000)
+                    pendingChatChapter = chapter
+                }
                 if newPhotoCount >= NotificationService.nudgePhotoThreshold {
                     await NotificationService.shared.scheduleNudge(newPhotoCount: newPhotoCount)
                 }

@@ -107,7 +107,13 @@ struct ChapterReadingView: View {
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
-                    Button("Share Chapter", systemImage: "square.and.arrow.up") {}
+                    ShareLink(
+                        item: shareText,
+                        subject: Text(chapter.title),
+                        message: Text("A chapter from my Theodore autobiography")
+                    ) {
+                        Label("Share Chapter", systemImage: "square.and.arrow.up")
+                    }
                     Button("Edit with Theodore", systemImage: "pencil") {}
                 } label: {
                     Image(systemName: "ellipsis")
@@ -175,6 +181,16 @@ struct ChapterReadingView: View {
     private var progress: CGFloat {
         guard sortedEntries.count > 0 else { return 0 }
         return CGFloat(currentEntry + 1) / CGFloat(sortedEntries.count)
+    }
+
+    private var shareText: String {
+        var parts: [String] = [chapter.title, chapter.period, ""]
+        for entry in sortedEntries {
+            if !entry.poem.isEmpty { parts.append(entry.poem) }
+            if !entry.prose.isEmpty { parts.append(entry.prose) }
+            parts.append("")
+        }
+        return parts.joined(separator: "\n")
     }
 
     private var chapterNumber: Int {

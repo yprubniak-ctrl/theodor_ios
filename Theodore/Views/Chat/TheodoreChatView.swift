@@ -14,7 +14,8 @@ struct TheodoreChatView: View {
     @State private var showPhotoPicker = false
     @State private var finalDraft: String?
     @State private var showKeepSheet   = false
-    @State private var draftAction: DraftAction?
+    @State private var generationComplete = false
+    @State private var showReadingView = false
     @FocusState private var inputFocused: Bool
 
     enum DraftAction { case keep, edit, rewrite }
@@ -34,7 +35,7 @@ struct TheodoreChatView: View {
                         LazyVStack(spacing: 10) {
                             if isNewChapter { openingMessage }
 
-                            if messages.isEmpty {
+                            if messages.isEmpty && isNewChapter {
                                 photoPickerPanel
                                     .padding(.horizontal, 16)
                                     .padding(.bottom, 4)
@@ -53,7 +54,14 @@ struct TheodoreChatView: View {
 
                             if viewModel.isGenerating {
                                 if viewModel.streamingText.isEmpty {
-                                    TypingIndicator()
+                                    VStack(spacing: 6) {
+                                        TypingIndicator()
+                                        if !viewModel.generationPhase.rawValue.isEmpty {
+                                            Text(viewModel.generationPhase.rawValue)
+                                                .font(.system(size: 11))
+                                                .foregroundStyle(Color.theoMuted)
+                                        }
+                                    }
                                 } else {
                                     draftCard(text: viewModel.streamingText, finalized: false)
                                         .padding(.horizontal, 16)
@@ -61,6 +69,13 @@ struct TheodoreChatView: View {
                             } else if let draft = finalDraft {
                                 draftCard(text: draft, finalized: true)
                                     .padding(.horizontal, 16)
+                            }
+
+                            // Chapter ready card — appears after generateInitialChapter finishes
+                            if generationComplete && !viewModel.isGenerating {
+                                chapterReadyCard
+                                    .padding(.horizontal, 16)
+                                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                             }
                         }
                         .padding(.vertical, 16)
@@ -74,10 +89,18 @@ struct TheodoreChatView: View {
                         }
                     }
                     .onChange(of: viewModel.isGenerating) { _, generating in
-                        if !generating, !viewModel.streamingText.isEmpty {
-                            let txt = viewModel.streamingText
-                            let isDraft = txt.contains("\n") && txt.replacingOccurrences(of: " ", with: "").count > 80
-                            if isDraft { finalDraft = txt }
+                        if !generating {
+                            // Photo chapter generation finished — entries were saved
+                            if let chapter, !chapter.entries.isEmpty {
+                                withAnimation { generationComplete = true }
+                            }
+                            // Conversational draft detection (freeform / chat responses)
+                            if !viewModel.streamingText.isEmpty {
+                                let txt = viewModel.streamingText
+                                let isDraft = txt.contains("\n") &&
+                                    txt.replacingOccurrences(of: " ", with: "").count > 80
+                                if isDraft { finalDraft = txt }
+                            }
                         }
                     }
                 }
@@ -132,6 +155,19 @@ struct TheodoreChatView: View {
         .photosPicker(isPresented: $showPhotoPicker, selection: $selectedItems, matching: .images)
         .sheet(isPresented: $showKeepSheet) {
             keepSheet
+        }
+        .fullScreenCover(isPresented: $showReadingView) {
+            if let chapter {
+                NavigationStack { ChapterReadingView(chapter: chapter) }
+            }
+        }
+        // Auto-start photo→chapter generation when opened with a fresh chapter
+        .task(id: chapter?.id) {
+            guard let chapter,
+                  !chapter.photoAssetIDs.isEmpty,
+                  chapter.entries.isEmpty,
+                  !viewModel.isGenerating else { return }
+            await viewModel.generateInitialChapter(chapter: chapter, context: context)
         }
     }
 
@@ -206,6 +242,40 @@ struct TheodoreChatView: View {
         }
         .padding(14)
         .glassCard(cornerRadius: 18)
+    }
+
+    // ── Chapter ready card ────────────────────────────────────────
+
+    private var chapterReadyCard: some View {
+        Button { showReadingView = true } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.theoGold.opacity(0.12))
+                        .overlay(RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.theoGold.opacity(0.25), lineWidth: 1))
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.theoGold)
+                }
+                .frame(width: 40, height: 40)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Your chapter is ready")
+                        .font(.system(size: 14, weight: .semibold, design: .serif))
+                        .foregroundStyle(Color.theoNavy)
+                    Text("Tap to read what Theodore wrote")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.theoMuted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.theoMuted)
+            }
+            .padding(16)
+            .glassCard(cornerRadius: 18)
+        }
+        .buttonStyle(.plain)
     }
 
     // ── Draft card ────────────────────────────────────────────────
@@ -316,8 +386,7 @@ struct TheodoreChatView: View {
 
             VStack(spacing: 10) {
                 PrimaryButton(title: "Save as new chapter") {
-                    showKeepSheet = false
-                    finalDraft = nil
+                    saveDraftAsChapter()
                 }
                 Button("Keep editing") { showKeepSheet = false }
                     .font(.system(size: 13, weight: .medium))
@@ -349,6 +418,37 @@ struct TheodoreChatView: View {
     }
 
     // ── Send ──────────────────────────────────────────────────────
+
+    private func saveDraftAsChapter() {
+        guard let draft = finalDraft else { return }
+        Task {
+            let descriptor = FetchDescriptor<Book>()
+            let books = (try? context.fetch(descriptor)) ?? []
+            let book: Book
+            if let existing = books.first {
+                book = existing
+            } else {
+                let b = Book(); context.insert(b); book = b
+            }
+            let newChapter = Chapter(
+                title: "Untitled Chapter",
+                period: Date.now.formatted(date: .abbreviated, time: .omitted),
+                moodTag: "freeform",
+                photoAssetIDs: []
+            )
+            newChapter.book = book
+            book.chapters.append(newChapter)
+            context.insert(newChapter)
+            let entry = Entry(photoAssetID: "", poem: draft, prose: "", photoDate: .now, sortOrder: 0)
+            entry.chapter = newChapter
+            newChapter.entries.append(entry)
+            context.insert(entry)
+            newChapter.isDraft = false
+            try? context.save()
+            showKeepSheet = false
+            finalDraft = nil
+        }
+    }
 
     private func sendMessage() {
         guard !inputText.isEmpty else { return }

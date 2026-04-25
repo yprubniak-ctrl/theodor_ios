@@ -48,8 +48,11 @@ struct OnboardingView: View {
             let book = books.first ?? {
                 let b = Book(); context.insert(b); return b
             }()
-            _ = await viewModel.createChapter(from: proposal, in: book, context: context)
-            try? context.save()
+            if let chapter = await viewModel.createChapter(from: proposal, in: book, context: context) {
+                try? context.save()
+                // Signal BookLibraryView to open this chapter in chat for generation
+                UserDefaults.standard.set(chapter.id.uuidString, forKey: "pendingChapterID")
+            }
             isOnboarded = true
         }
     }
@@ -327,13 +330,21 @@ private struct ProposalsView: View {
             .padding(.horizontal, 20)
             .padding(.top, 16)
 
-            // Error
+            // Error or empty state
             if let errorMsg = viewModel.error {
-                Text("Error: \(errorMsg)")
-                    .font(.theoCaption)
-                    .foregroundStyle(.red)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
+                VStack(spacing: 10) {
+                    Text("Couldn't connect to Theodore")
+                        .font(.system(size: 14, weight: .semibold, design: .serif))
+                        .foregroundStyle(Color.theoNavy)
+                    Text(errorMsg)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.theoMuted)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(16)
+                .glassCard(cornerRadius: 16)
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
             }
 
             // Label
